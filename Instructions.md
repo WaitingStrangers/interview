@@ -1,51 +1,300 @@
-库说明
-
-使用前后端分离
-数据库使用MySql
-数据存储目前使用本地存储,计划使用:Cloudflare R2 + Cloudflare Workers
-程序部署:docker + k8s + ingress-nginx
-
 # interview 编写与使用指南
 
-## 1. interview 简介
+## 1. 项目简介
 
-使用前后端分离.前端:vue3 + element-plus 后端:nodejs + express
-数据库使用MySql
-数据存储目前使用本地存储,计划使用:Cloudflare R2 + Cloudflare Workers
-程序部署:docker + k8s + ingress-nginx
+### 1.1 项目概述
+- **架构**: 前后端分离
+- **前端**: Vue3 + Element Plus
+- **后端**: Node.js + Express + Prisma ORM
+- **数据库**: MySQL
+- **存储**: 本地存储 (计划迁移到 Cloudflare R2 + Cloudflare Workers)
+- **部署**: Docker + Kubernetes + Ingress-Nginx
 
-前端启动:
-```
-cd interview
+### 1.2 快速启动
+
+#### 前端启动
+```bash
+cd Interview
 npm install
 npm run dev
 ```
 
-后端启动:
-```
-cd serverNode
+#### 后端启动
+```bash
+cd ServiceNode
 npm install
 npm start
 ```
 
-## 2. 部署生产环境
+### 1.3 目录结构
+```
+interview/
+├── Interview/          # 前端项目
+├── ServiceNode/        # 后端项目
+├── docker-compose.yml  # Docker Compose 配置
+├── Instructions.md     # 详细部署文档
+└── AI_DEPLOYMENT_GUIDE.md  # AI 自动部署指南
+```
 
-### 2.1 环境要求
+
+
+## 2. 数据库操作
+
+### 2.1 初始化数据库
+
+#### 2.1.1 开发环境初始化
+
+```bash
+# 1. 进入后端目录
+cd ServiceNode
+
+# 2. 安装依赖
+npm install
+
+# 3. 配置环境变量（如果.env文件不存在）
+cp .env.example .env  # 根据实际情况调整
+# 编辑.env文件，配置数据库连接URL
+# 格式：DATABASE_URL="mysql://用户名:密码@主机:端口/数据库名?sslmode=disable"
+
+# 4. 初始化数据库并应用迁移（推荐）
+npx prisma migrate dev --name init
+
+# 或使用db push快速初始化
+npx prisma db push
+
+# 5. 生成Prisma Client（如果步骤4未自动生成）
+npx prisma generate
+```
+
+#### 2.1.2 生产环境初始化
+
+```bash
+# 1. 进入后端目录
+cd ServiceNode
+
+# 2. 安装依赖
+npm install
+
+# 3. 配置环境变量
+# 确保.env文件已正确配置
+
+# 4. 生成Prisma Client
+npx prisma generate
+
+# 5. 应用数据库迁移
+npx prisma migrate deploy
+```
+
+### 2.2 更新数据库结构
+
+#### 2.2.1 开发环境更新
+
+```bash
+# 1. 修改prisma/schema.prisma文件，更新数据库模型
+
+# 2. 验证Schema
+npm run db validate
+
+# 3. 创建并应用迁移
+npx prisma migrate dev --name <migration-name>
+
+# 或使用db push快速更新
+npx prisma db push
+
+# 4. 生成Prisma Client
+npx prisma generate
+```
+
+#### 2.2.2 生产环境更新
+
+```bash
+# 1. 在开发环境创建迁移文件
+# 确保迁移文件已提交到代码仓库
+
+# 2. 拉取最新代码
+# git pull
+
+# 3. 进入后端目录
+cd ServiceNode
+
+# 4. 安装依赖（如果有更新）
+npm install
+
+# 5. 生成Prisma Client
+npx prisma generate
+
+# 6. 应用数据库迁移
+npx prisma migrate deploy
+```
+
+### 2.3 Docker部署数据库
+
+#### 2.3.1 使用Docker Compose部署
+
+1. **配置docker-compose.yml**：
+
+确保docker-compose.yml文件中包含MySQL服务配置：
+
+```yaml
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: interview-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: interview
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+  backend:
+    build: ./ServiceNode
+    container_name: interview-backend
+    restart: always
+    environment:
+      - DATABASE_URL=mysql://root:root123@mysql:3306/interview?sslmode=disable
+    depends_on:
+      - mysql
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
+```
+
+2. **启动服务**：
+
+```bash
+# 启动所有服务（包括MySQL）
+docker-compose up -d
+```
+
+3. **初始化数据库**：
+
+```bash
+# 进入后端容器
+docker exec -it interview-backend bash
+
+# 应用数据库迁移
+npx prisma migrate deploy
+```
+
+#### 2.3.2 连接Docker中的MySQL
+
+**从宿主机连接**：
+
+```bash
+# 使用MySQL客户端连接
+sudo mysql -h localhost -P 3306 -u root -proot123 interview
+
+# 或使用Prisma Studio查看数据
+cd ServiceNode
+npx prisma studio
+```
+
+**从其他容器连接**：
+
+```bash
+# 使用Docker网络连接
+# 例如从前端容器连接
+
+docker exec -it interview-frontend bash
+
+# 连接MySQL数据库
+mysql -h mysql -P 3306 -u root -proot123 interview
+```
+
+### 2.4 数据库操作命令行工具
+
+```bash
+# 查看所有可用命令
+npm run db
+
+# 生成Prisma Client
+npm run db generate
+
+# 创建并应用迁移
+npm run db migrate <migration-name>
+
+# 仅创建迁移文件
+npm run db migrate-create <migration-name>
+
+# 应用所有未应用的迁移
+npm run db migrate-apply
+
+# 重置数据库
+npm run db reset
+
+# 打开Prisma Studio
+npm run db studio
+
+# 验证Schema
+npm run db validate
+
+# 查看数据库状态
+npm run db status
+```
+
+### 2.5 常见数据库操作问题
+
+#### 2.5.1 数据库连接失败
+
+**症状**：`Error: connect ECONNREFUSED`
+
+**解决方法**：
+1. 确保MySQL服务正在运行
+2. 检查.env文件中的数据库连接URL是否正确
+3. 如果使用Docker，确保容器网络配置正确
+4. 检查数据库用户权限
+
+#### 2.5.2 迁移失败
+
+**症状**：`P1014: The table does not exist in the current database.`
+
+**解决方法**：
+1. 检查Schema文件是否正确
+2. 尝试使用`npx prisma db push`重新同步数据库
+3. 或使用`npx prisma migrate reset`重置数据库（注意：会删除所有数据）
+
+#### 2.5.3 Prisma Client生成失败
+
+**症状**：`Generator "@prisma/client" failed: /bin/sh: @prisma/client: No such file or directory`
+
+**解决方法**：
+1. 确保依赖已正确安装：`npm install`
+2. 尝试重新安装Prisma依赖：`npm install prisma@latest @prisma/client@latest`
+3. 检查node_modules目录是否存在
+
+## 3. 部署生产环境
+
+### 3.1 环境要求
 
 - Docker：[安装指南](https://docs.docker.com/get-docker/)
 - Docker Compose：通常随 Docker 一起安装
 - Git：用于拉取代码
 
-### 2.2 部署流程
+### 3.2 部署流程
 
-#### 2.2.1 拉取代码
+#### 3.2.1 拉取代码
 
 ```bash
 git clone <your-github-repo-url>
 cd <repo-directory>
 ```
 
-#### 2.2.2 配置选择
+#### 3.2.2 配置选择
 
 根据您的环境选择合适的部署方案：
 
@@ -101,7 +350,7 @@ cd <repo-directory>
 
 2. 确保 MySQL 端口 3306 未被占用
 
-#### 2.2.3 启动服务
+#### 3.2.3 启动服务
 
 **一键启动所有服务**：
 
@@ -116,7 +365,7 @@ docker-compose up -d <service-name>
 # 例如：docker-compose up -d backend
 ```
 
-#### 2.2.4 验证服务
+#### 3.2.4 验证服务
 
 服务启动后，验证是否正常运行：
 
@@ -131,16 +380,16 @@ curl -I http://localhost
 curl http://localhost/api/questions
 ```
 
-### 2.3 访问方式
+### 3.3 访问方式
 
 - **前端应用**：通过浏览器访问 `http://localhost`
 - **后端 API**：
   - 通过 Nginx 代理：`http://localhost/api/`
   - 直接访问：`http://localhost:3000`
 
-### 2.4 服务管理
+### 3.4 服务管理
 
-#### 2.4.1 查看服务日志
+#### 3.4.1 查看服务日志
 
 ```bash
 # 查看所有服务日志
@@ -151,7 +400,7 @@ docker-compose logs -f <service-name>
 # 例如：docker-compose logs -f backend
 ```
 
-#### 2.4.2 停止服务
+#### 3.4.2 停止服务
 
 ```bash
 # 停止所有服务，但保留容器
@@ -161,7 +410,7 @@ docker-compose stop
 docker-compose down
 ```
 
-#### 2.4.3 重启服务
+#### 3.4.3 重启服务
 
 ```bash
 # 重启所有服务
@@ -171,7 +420,7 @@ docker-compose restart
 docker-compose restart <service-name>
 ```
 
-#### 2.4.4 重新构建服务
+#### 3.4.4 重新构建服务
 
 ```bash
 # 构建并启动所有服务
@@ -181,7 +430,9 @@ docker-compose up --build -d
 docker-compose up --build -d <service-name>
 ```
 
-### 2.5 数据库初始化
+### 3.5 数据库初始化（旧版）
+
+**注意**：本方法仅适用于未使用 Prisma ORM 的旧版部署。使用 Prisma 时，请参考 "2. 数据库操作" 章节。
 
 如果使用新的 MySQL 数据库，需要初始化表结构：
 
@@ -228,9 +479,9 @@ const pool = mysql.createPool({
 "
 ```
 
-### 2.6 常见问题处理
+### 3.6 常见问题处理
 
-#### 2.6.1 端口冲突
+#### 3.6.1 端口冲突
 
 **症状**：启动服务时出现 `port is already allocated` 错误
 
@@ -248,7 +499,7 @@ const pool = mysql.createPool({
        - "3001:3000"  # 将 3001 改为其他可用端口
    ```
 
-#### 2.6.2 数据库连接失败
+#### 3.6.2 数据库连接失败
 
 **症状**：后端日志显示 `Error: connect ECONNREFUSED`
 
@@ -261,7 +512,7 @@ const pool = mysql.createPool({
    - 端口号
 3. 如果使用现有 MySQL，确保防火墙允许连接
 
-#### 2.6.3 前端路由无法访问
+#### 3.6.3 前端路由无法访问
 
 **症状**：直接访问 `http://localhost/insert` 显示 404 错误
 
@@ -274,7 +525,7 @@ const pool = mysql.createPool({
    docker-compose up --build -d frontend
    ```
 
-#### 2.6.4 服务启动后无法访问
+#### 3.6.4 服务启动后无法访问
 
 **解决方法**：
 
@@ -282,11 +533,11 @@ const pool = mysql.createPool({
 2. 查看服务日志：`docker-compose logs -f <service-name>`
 3. 检查防火墙设置，确保端口已开放
 
-### 2.7 开发环境部署
+### 3.7 开发环境部署
 
 如果需要热更新功能，可配置开发环境：
 
-#### 2.7.1 前端开发环境
+#### 3.7.1 前端开发环境
 
 ```bash
 cd Interview
@@ -294,7 +545,7 @@ npm install
 npm run dev
 ```
 
-#### 2.7.2 后端开发环境
+#### 3.7.2 后端开发环境
 
 ```bash
 cd ServiceNode
@@ -302,7 +553,7 @@ npm install
 npx nodemon index.js
 ```
 
-### 2.8 生产环境优化建议
+### 3.8 生产环境优化建议
 
 1. **配置 HTTPS**：使用 Let's Encrypt 或其他证书颁发机构获取 SSL 证书
 2. **使用持久化存储**：为音频文件和数据库数据配置持久化存储
@@ -310,21 +561,23 @@ npx nodemon index.js
 4. **日志管理**：使用 ELK Stack 或 Loki 管理日志
 5. **自动部署**：配置 CI/CD 流水线，实现自动构建和部署
 
-### 2.9 升级指南
+### 3.9 升级指南
 
-#### 2.9.1 拉取最新代码
+#### 3.9.1 拉取最新代码
 
 ```bash
 git pull
 ```
 
-#### 2.9.2 重新构建服务
+#### 3.9.2 重新构建服务
 
 ```bash
 docker-compose up --build -d
 ```
 
-#### 2.9.3 数据库迁移
+#### 3.9.3 数据库迁移（旧版）
+
+**注意**：本方法仅适用于未使用 Prisma ORM 的旧版部署。使用 Prisma 时，请参考 "2. 数据库操作" 章节。
 
 如果数据库结构有变化，执行：
 
@@ -335,7 +588,3 @@ docker exec -it interview-backend-1 bash
 # 执行数据库迁移脚本
 node migration.js
 ```
-
----
-
-通过以上步骤，您可以成功部署和管理前后端服务。如果遇到任何问题，建议查看服务日志或参考 Docker 官方文档。
