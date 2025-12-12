@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import choose from "../views/choose.vue"
-import index from "../views/index.vue"
-import insert from "../views/insert.vue"
+import index from "../views/Index.vue"
+import insert from "../views/Insert.vue"
 import interviewDetails from "../views/interviewDetails.vue"
-import interview from "../views/interview.vue"
+import interview from "../views/Interview.vue"
 import auto from "../views/auto.vue"
 
 const router = createRouter({
