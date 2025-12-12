@@ -1,0 +1,45 @@
+// This is your Prisma schema file, learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "@prisma/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// 问题表
+model Question {
+  id        Int      @id @default(autoincrement())
+  question  String   @db.Text
+  answer    String   @db.Text
+  type      Int      // 0-自我介绍, 1-简历面试，2-面试提问，3-vue面试题，4-前端热门面试，5-全部面试题
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime? @updatedAt @map("updated_at")
+
+  // 关联关系：一个问题可以被多次面试使用
+  interviews Interview[]
+
+  @@map("Question")
+}
+
+// 面试表
+model Interview {
+  id            Int      @id @default(autoincrement())
+  interview_id  String   @map("interview_id")
+  question_id   Int      @map("question_id")
+  answer_path   String   @map("answer_path")
+  raw_answer    String?  @db.Text @map("raw_answer")
+  refined_answer String?  @db.Text @map("refined_answer")
+  newData       String?  @map("newData")  // 新增字段：newData
+  created_at    DateTime @default(now()) @map("created_at")
+  updated_at    DateTime? @updatedAt @map("updated_at")
+
+  // 关联关系：每个面试记录关联一个问题
+  question      Question @relation(fields: [question_id], references: [id])
+
+  @@map("Interview")
+}
+
+//使用 npx prisma db push 命令将更改推送到数据库
