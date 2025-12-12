@@ -10,9 +10,15 @@
 ServiceNode/
 ├── prisma/
 │   └── schema.prisma          # Prisma Schema 文件，定义数据库模型
-├── dbData.js                   # 原有的数据库操作模块
-├── prismaDb.js                 # 基于 Prisma 的数据库操作模块
+├── src/
+│   ├── routes/               # 路由层
+│   ├── controllers/          # 控制器层
+│   ├── services/             # 服务层
+│   └── utils/                # 工具层
+├── DB/                       # 数据库备份文件目录
 ├── db-cli.js                   # 数据库操作命令行工具
+├── backup-db.js                # 数据库备份脚本
+├── restore-db.js               # 数据库恢复脚本
 ├── package.json                # 项目依赖和脚本配置
 ├── .env                        # 环境变量配置（包含数据库连接信息）
 └── index.js                    # 主应用入口
@@ -104,31 +110,63 @@ npm run prisma:validate
 
 ## 使用 Prisma 数据库操作模块
 
-### 替换原有模块
+### 模块化架构
 
-在 `index.js` 文件中，将原有数据库模块替换为 Prisma 模块：
+项目采用了清晰的分层架构，使用 Prisma ORM 进行数据库操作：
 
-```javascript
-// 原有代码
-const { selectQuestionList, insertInterviewData, selectInterviewData, selectInterviewList, insertQuestionData, insertQuestionsData } = require("./dbData");
+1. **路由层** (`src/routes/`)：处理 HTTP 请求路由
+2. **控制器层** (`src/controllers/`)：处理请求逻辑，调用服务层
+3. **服务层** (`src/services/`)：封装业务逻辑和数据库操作
+4. **工具层** (`src/utils/`)：提供通用工具和配置
 
-// 替换为
-const { selectQuestionList, insertInterviewData, selectInterviewData, selectInterviewList, insertQuestionData, insertQuestionsData } = require("./prismaDb");
-```
+### 服务层说明
 
-### 功能说明
-
-`prismaDb.js` 提供了与 `dbData.js` 相同的接口，确保了平滑迁移：
+#### QuestionService
 
 | 函数名 | 描述 |
 |-------|------|
 | selectQuestionList() | 查询所有问题列表 |
+| insertQuestionData(question, answer, type) | 新增单个问题 |
+| insertQuestionsData(questions) | 批量新增问题 |
+
+#### InterviewService
+
+| 函数名 | 描述 |
+|-------|------|
 | selectInterviewData(interviewId) | 查询某个面试的详细数据 |
 | selectInterviewList() | 查询面试列表 |
 | insertInterviewData(interview_id, question_id, answer_path, raw_answer, refined_answer) | 新增面试数据 |
-| insertQuestionData(question, answer, type) | 新增单个问题 |
-| insertQuestionsData(questions) | 批量新增问题 |
-| closePrisma() | 关闭 Prisma Client 连接（可选） |
+
+### 数据库操作示例
+
+```javascript
+// 在服务层使用 Prisma
+const prisma = require('../utils/prisma');
+
+async function selectQuestionList() {
+    try {
+        const questions = await prisma.question.findMany();
+        return questions;
+    } catch (error) {
+        console.error('查询问题列表失败:', error);
+        throw error;
+    }
+}
+```
+
+### 路由配置
+
+```javascript
+// 在路由层配置 API 端点
+const express = require('express');
+const router = express.Router();
+const questionController = require('../controllers/questionController');
+
+// GET 请求：获取问题列表
+router.get('/questions', questionController.getQuestions);
+
+module.exports = router;
+```
 
 ## 数据库更新流程
 
@@ -202,12 +240,16 @@ npm run db generate
 
 #### 步骤 5：在应用中使用新字段
 
-```javascript
-// 新增面试数据时包含 newData
-insertInterviewData(interview_id, question_id, answer_path, raw_answer, refined_answer, newData);
+1. **服务层**：服务层会自动包含新字段
 
-// 查询时会自动包含 newData 字段
-const interviewData = await selectInterviewData(interviewId);
+2. **控制器层**：可以直接访问新字段
+
+3. **API 响应**：查询时会自动返回新字段
+
+```javascript
+// 在控制器中使用
+const interviewData = await interviewService.selectInterviewData(interviewId);
+// interviewData 会自动包含 newData 字段
 ```
 
 ## 常见问题
