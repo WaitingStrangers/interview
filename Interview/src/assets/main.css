@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+.custom-tooltip {
+  max-width: 300px; /* tooltip 最大宽度 */
+  white-space: normal; /* 允许换行显示 */
+  word-break: break-word; /* 防止文字溢出 */
+}
