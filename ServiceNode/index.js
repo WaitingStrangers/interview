@@ -6,6 +6,13 @@ const port = 3000;
 // 导入主路由
 const apiRoutes = require('./src/routes/index');
 
+// 导入Sequelize配置
+const { testConnection } = require('./src/utils/sequelize');
+
+// 导入所有模型
+require('./src/models/Question');
+require('./src/models/Interview');
+
 // 解析 JSON 请求体
 app.use(express.json());
 
@@ -29,7 +36,19 @@ app.use((req, res, next) => {
 // 注册API路由
 app.use('/api', apiRoutes);
 
-// 启动服务器
-app.listen(port, () => {
-  console.log(`🚀 Server running at http://localhost:${port}`);
-});
+// 仅在直接运行时启动服务器，测试时由测试框架控制
+if (require.main === module) {
+  // 测试数据库连接
+  async function startServer() {
+    await testConnection();
+    
+    // 启动服务器
+    app.listen(port, () => {
+      console.log(`🚀 Server running at http://localhost:${port}`);
+    });
+  }
+
+  startServer();
+}
+
+module.exports = app;

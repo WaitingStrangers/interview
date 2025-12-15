@@ -1,4 +1,5 @@
-const prisma = require('../utils/prisma');
+const Interview = require('../models/Interview');
+const Question = require('../models/Question');
 
 /**
  * 查询某个面试的详细数据
@@ -6,13 +7,14 @@ const prisma = require('../utils/prisma');
  */
 async function selectInterviewData(interviewId) {
     try {
-        const interviewData = await prisma.interview.findMany({
+        const interviewData = await Interview.findAll({
             where: {
                 interview_id: interviewId
             },
-            include: {
-                question: true
-            },
+            include: [{
+                model: Question,
+                required: true
+            }],
             orderBy: {
                 created_at: 'asc'
             }
@@ -20,10 +22,10 @@ async function selectInterviewData(interviewId) {
         
         // 转换数据格式以匹配原有接口
         return interviewData.map(item => ({
-            questionText: item.question.question,
+            questionText: item.Question.question,
             rawAnswer: item.raw_answer,
             mp3Path: item.answer_path,
-            correctAnswer: item.question.answer,
+            correctAnswer: item.Question.answer,
             refinedAnswer: item.refined_answer
         }));
     } catch (error) {
@@ -37,36 +39,29 @@ async function selectInterviewData(interviewId) {
  */
 async function selectInterviewList() {
     try {
-        // 使用Prisma的groupBy和aggregate功能
-        const interviewList = await prisma.interview.groupBy({
-            by: ['interview_id'],
-            _min: {
-                created_at: true
-            },
-            _max: {
-                created_at: true
-            },
-            _count: {
-                interview_id: true
-            },
-            orderBy: {
-                _min: {
-                    created_at: 'asc'
-                }
-            }
+        // 使用Sequelize的group和aggregate功能
+        const interviewList = await Interview.findAll({
+            attributes: [
+                'interview_id',
+                [Interview.sequelize.fn('MIN', Interview.sequelize.col('created_at')), 'start_time'],
+                [Interview.sequelize.fn('MAX', Interview.sequelize.col('created_at')), 'end_time'],
+                [Interview.sequelize.fn('COUNT', Interview.sequelize.col('interview_id')), 'question_count']
+            ],
+            group: ['interview_id'],
+            order: [[Interview.sequelize.fn('MIN', Interview.sequelize.col('created_at')), 'asc']]
         });
         
         // 转换数据格式以匹配原有接口
         return interviewList.map((item, index) => {
-            const startTime = item._min.created_at;
-            const endTime = item._max.created_at;
+            const startTime = new Date(item.dataValues.start_time);
+            const endTime = new Date(item.dataValues.end_time);
             const durationSeconds = Math.floor((endTime - startTime) / 1000);
             
             return {
-                interviewId: item.interview_id,
+                interviewId: item.dataValues.interview_id,
                 interviewIndex: index + 1,
                 interviewTime: startTime,
-                questionCount: item._count.interview_id,
+                questionCount: parseInt(item.dataValues.question_count),
                 durationSeconds: durationSeconds
             };
         });
@@ -86,14 +81,12 @@ async function selectInterviewList() {
  */
 async function insertInterviewData(interview_id, question_id, answer_path, raw_answer, refined_answer) {
     try {
-        const result = await prisma.interview.create({
-            data: {
-                interview_id,
-                question_id,
-                answer_path,
-                raw_answer,
-                refined_answer
-            }
+        const result = await Interview.create({
+            interview_id,
+            question_id,
+            answer_path,
+            raw_answer,
+            refined_answer
         });
         
         return result.id;

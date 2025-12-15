@@ -10,20 +10,15 @@
     "test:watch": "jest --watch --runInBand",
     "start": "node index.js",
     "db": "node db-cli.js",
-    "save": "node backup-db.js",
+    "save": "node save-and-backup.js",
     "restore": "node restore-db.js",
-    "backup": "node backup-db.js",
-    "prisma:generate": "npx prisma generate",
-    "prisma:migrate": "npx prisma migrate dev",
-    "prisma:studio": "npx prisma studio",
-    "prisma:validate": "npx prisma validate"
+    "backup": "node backup-db.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@prisma/client": "6.3.1",
     "commander": "^14.0.2",
     "dotenv": "^17.2.3",
     "edge-tts": "^1.0.1",
@@ -32,7 +27,8 @@
     "gtts": "^0.2.1",
     "multer": "^2.0.2",
     "mysql2": "^3.14.5",
-    "prisma": "6.3.1"
+    "sequelize": "^6.37.7",
+    "sequelize-cli": "^6.6.3"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

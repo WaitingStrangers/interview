@@ -18,5 +18,4 @@ RUN npm install
 EXPOSE 3000
 
 # 启动后端服务
-# 先生成 Prisma 客户端，然后使用 node index.js 命令启动服务
-CMD ["sh", "-c", "node_modules/.bin/prisma generate && node index.js"]
+CMD ["node", "index.js"]

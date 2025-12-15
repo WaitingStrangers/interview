@@ -1,11 +1,11 @@
-const prisma = require('../utils/prisma');
+const Question = require('../models/Question');
 
 /**
  * 查询所有问题列表
  */
 async function selectQuestionList() {
     try {
-        const questions = await prisma.question.findMany();
+        const questions = await Question.findAll();
         return questions;
     } catch (error) {
         console.error('查询问题列表失败:', error);
@@ -21,12 +21,10 @@ async function selectQuestionList() {
  */
 async function insertQuestionData(question, answer, type) {
     try {
-        const result = await prisma.question.create({
-            data: {
-                question,
-                answer,
-                type
-            }
+        const result = await Question.create({
+            question,
+            answer,
+            type
         });
         
         return result.id;
@@ -42,15 +40,15 @@ async function insertQuestionData(question, answer, type) {
  */
 async function insertQuestionsData(questions) {
     try {
-        const result = await prisma.question.createMany({
-            data: questions.map(item => ({
+        const result = await Question.bulkCreate(
+            questions.map(item => ({
                 question: item.question,
                 answer: item.answer,
                 type: item.typeData
             }))
-        });
+        );
         
-        return result.count;
+        return result.length;
     } catch (error) {
         console.error('批量插入问题数据失败:', error);
         throw error;

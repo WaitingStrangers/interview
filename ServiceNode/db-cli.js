@@ -12,62 +12,100 @@ program
   .version('1.0.0')
   .description('数据库操作命令行工具');
 
-// 生成Prisma Client
+// 初始化Sequelize迁移
 program
-  .command('generate')
-  .description('生成Prisma Client')
+  .command('init')
+  .description('初始化Sequelize迁移配置')
   .action(() => {
     try {
-      console.log('正在生成Prisma Client...');
-      execSync('npx prisma generate', { stdio: 'inherit' });
-      console.log('✅ Prisma Client生成成功');
+      console.log('正在初始化Sequelize迁移配置...');
+      execSync('npx sequelize-cli init', { stdio: 'inherit' });
+      console.log('✅ Sequelize迁移配置初始化成功');
     } catch (error) {
-      console.error('❌ Prisma Client生成失败:', error.message);
+      console.error('❌ Sequelize迁移配置初始化失败:', error.message);
       process.exit(1);
     }
   });
 
-// 创建数据库迁移
+// 创建迁移文件
 program
-  .command('migrate <name>')
-  .description('创建并应用数据库迁移')
+  .command('migrate:generate <name>')
+  .description('生成迁移文件')
   .action((name) => {
     try {
-      console.log(`正在创建迁移: ${name}...`);
-      execSync(`npx prisma migrate dev --name ${name}`, { stdio: 'inherit' });
-      console.log('✅ 迁移创建并应用成功');
+      console.log(`正在生成迁移文件: ${name}...`);
+      execSync(`npx sequelize-cli migration:generate --name ${name}`, { stdio: 'inherit' });
+      console.log('✅ 迁移文件生成成功');
     } catch (error) {
-      console.error('❌ 迁移创建失败:', error.message);
+      console.error('❌ 迁移文件生成失败:', error.message);
       process.exit(1);
     }
   });
 
-// 应用所有未应用的迁移
+// 运行迁移
 program
-  .command('migrate-apply')
-  .description('应用所有未应用的数据库迁移')
+  .command('migrate')
+  .description('运行所有未执行的迁移')
   .action(() => {
     try {
-      console.log('正在应用数据库迁移...');
-      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-      console.log('✅ 迁移应用成功');
+      console.log('正在运行数据库迁移...');
+      execSync('npx sequelize-cli db:migrate', { stdio: 'inherit' });
+      console.log('✅ 迁移运行成功');
     } catch (error) {
-      console.error('❌ 迁移应用失败:', error.message);
+      console.error('❌ 迁移运行失败:', error.message);
       process.exit(1);
     }
   });
 
-// 生成迁移但不应用
+// 回滚迁移
 program
-  .command('migrate-create <name>')
-  .description('创建数据库迁移但不应用')
-  .action((name) => {
+  .command('migrate:undo')
+  .description('回滚上一次迁移')
+  .action(() => {
     try {
-      console.log(`正在创建迁移文件: ${name}...`);
-      execSync(`npx prisma migrate dev --name ${name} --create-only`, { stdio: 'inherit' });
-      console.log('✅ 迁移文件创建成功');
+      console.log('正在回滚上一次迁移...');
+      execSync('npx sequelize-cli db:migrate:undo', { stdio: 'inherit' });
+      console.log('✅ 迁移回滚成功');
     } catch (error) {
-      console.error('❌ 迁移文件创建失败:', error.message);
+      console.error('❌ 迁移回滚失败:', error.message);
+      process.exit(1);
+    }
+  });
+
+// 回滚所有迁移
+program
+  .command('migrate:undo:all')
+  .description('回滚所有迁移')
+  .action(() => {
+    try {
+      console.log('正在回滚所有迁移...');
+      execSync('npx sequelize-cli db:migrate:undo:all', { stdio: 'inherit' });
+      console.log('✅ 所有迁移回滚成功');
+    } catch (error) {
+      console.error('❌ 迁移回滚失败:', error.message);
+      process.exit(1);
+    }
+  });
+
+// 创建模型
+program
+  .command('model:generate')
+  .description('生成Sequelize模型')
+  .option('-n, --name <name>', '模型名称')
+  .option('-a, --attributes <attributes>', '模型属性')
+  .action((options) => {
+    if (!options.name || !options.attributes) {
+      console.error('❌ 请提供模型名称和属性');
+      console.error('使用示例: node db-cli.js model:generate --name User --attributes firstName:string,lastName:string,email:string');
+      process.exit(1);
+    }
+    
+    try {
+      console.log(`正在生成模型: ${options.name}...`);
+      execSync(`npx sequelize-cli model:generate --name ${options.name} --attributes ${options.attributes}`, { stdio: 'inherit' });
+      console.log('✅ 模型生成成功');
+    } catch (error) {
+      console.error('❌ 模型生成失败:', error.message);
       process.exit(1);
     }
   });
@@ -101,7 +139,8 @@ program
 function executeReset() {
   try {
     console.log('正在重置数据库...');
-    execSync('npx prisma migrate reset --force', { stdio: 'inherit' });
+    execSync('npx sequelize-cli db:migrate:undo:all', { stdio: 'inherit' });
+    execSync('npx sequelize-cli db:migrate', { stdio: 'inherit' });
     console.log('✅ 数据库重置成功');
   } catch (error) {
     console.error('❌ 数据库重置失败:', error.message);
@@ -109,43 +148,14 @@ function executeReset() {
   }
 }
 
-// 查看数据库结构
-program
-  .command('studio')
-  .description('打开Prisma Studio查看数据库结构')
-  .action(() => {
-    try {
-      console.log('正在打开Prisma Studio...');
-      execSync('npx prisma studio', { stdio: 'inherit' });
-    } catch (error) {
-      console.error('❌ 打开Prisma Studio失败:', error.message);
-      process.exit(1);
-    }
-  });
-
-// 验证Prisma Schema
-program
-  .command('validate')
-  .description('验证Prisma Schema的正确性')
-  .action(() => {
-    try {
-      console.log('正在验证Prisma Schema...');
-      execSync('npx prisma validate', { stdio: 'inherit' });
-      console.log('✅ Prisma Schema验证成功');
-    } catch (error) {
-      console.error('❌ Prisma Schema验证失败:', error.message);
-      process.exit(1);
-    }
-  });
-
-// 显示数据库连接状态
+// 显示迁移状态
 program
   .command('status')
-  .description('显示数据库连接状态和迁移状态')
+  .description('显示数据库迁移状态')
   .action(() => {
     try {
-      console.log('正在检查数据库状态...');
-      execSync('npx prisma migrate status', { stdio: 'inherit' });
+      console.log('正在检查数据库迁移状态...');
+      execSync('npx sequelize-cli db:migrate:status', { stdio: 'inherit' });
     } catch (error) {
       console.error('❌ 检查数据库状态失败:', error.message);
       process.exit(1);
